@@ -1,0 +1,51 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load your Excel file
+data = pd.read_excel('churn_data.xlsx')  # Replace with your file path
+
+# Clean up: Remove any rows with missing User ID or artifacts
+data = data.dropna(subset=['User ID'])
+
+# Prepare data: Calculate counts and percentages
+summary = data.groupby(['Level of Activity', 'Sex', 'Churn']).size().unstack(fill_value=0)
+summary['Total'] = summary['No'] + summary['Yes']
+summary['Churn_%'] = summary['Yes'] / summary['Total'] * 100
+summary['No_%'] = summary['No'] / summary['Total'] * 100
+summary = summary.reset_index()
+
+# Stacked Bar Chart
+plt.figure(figsize=(12, 6))
+bottom = [0] * len(summary['Level of Activity'].unique())  # For stacking
+for churn_status in ['No', 'Yes']:
+    subset = summary[summary['Churn'] == churn_status]
+    plt.bar(
+        subset['Level of Activity'], 
+        subset[f'{churn_status}_%'], 
+        bottom=bottom, 
+        label=f'Churn: {churn_status}', 
+        color='green' if churn_status == 'No' else 'red', 
+        alpha=0.8
+    )
+    # Add percentage labels
+    for i, (x, y) in enumerate(zip(subset['Level of Activity'], bottom)):
+        if subset[f'{churn_status}_%'].iloc[i] > 5:  # Only label if >5% for readability
+            plt.text(x, y + subset[f'{churn_status}_%'].iloc[i] / 2, 
+                     f"{subset[f'{churn_status}_%'].iloc[i]:.1f}%", 
+                     ha='center', va='center', color='white', fontweight='bold')
+    bottom = [b + subset[f'{churn_status}_%'].iloc[i] for i, b in enumerate(bottom)]
+
+plt.title('Churn Proportion by Activity Level (Stacked to 100%)', fontsize=14)
+plt.xlabel('Level of Activity', fontsize=12)
+plt.ylabel('Percentage of Users (%)', fontsize=12)
+plt.legend(title='Churn Status')
+plt.ylim(0, 100)
+plt.grid(axis='y', linestyle='--', alpha=0.3)
+plt.tight_layout()
+plt.savefig('stacked_churn_percentage.png')
+plt.show()
+
+# Print summary for reference
+print("\nChurn Summary by Activity Level and Sex:")
+print(summary[['Level of Activity', 'Sex', 'No', 'Yes', 'Churn_%']])
